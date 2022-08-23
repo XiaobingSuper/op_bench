@@ -137,7 +137,8 @@ for x in range(len(S)):
 #for x in range(1):
     P = S[x]
     (N, C, H, W) = P[0:4]
-    N = 40
+    #N = 40
+    N = 1 
     M = P[4]
     (kernel_h, kernel_w) = P[5:7]
     (stride_h, stride_w) = P[7:9]
@@ -159,7 +160,9 @@ for x in range(len(S)):
 
         def forward(self, x, other):
             y = self.conv2d(x)
-            return self.binary(y, other)
+            result = self.binary(y, other)
+            #return result
+            return result.relu()
 
     model = ConvNet().to(memory_format=torch.channels_last).eval()
     with torch.no_grad():
@@ -167,19 +170,16 @@ for x in range(len(S)):
         traced_model = torch.jit.freeze(traced_model)
 
     other = model.conv2d(X).to(memory_format=torch.channels_last)
+
+    with torch.no_grad():
+        for i in range(200):
+            y = traced_model(X, other)
     def pt_forward():
         with torch.no_grad():
-            traced_model(X, other)
+            y = traced_model(X, other)
 
     
     #torch._C._jit_set_texpr_fuser_enabled(True)
     t = Timer("pt_forward()", "from __main__ import pt_forward, X, other") 
     t1 = t.timeit(num) / num * 1000.0
     print("time {}".format(t1))
-    '''
-    torch._C._jit_set_texpr_fuser_enabled(False)
-    t = Timer("pt_forward()", "from __main__ import pt_forward, X, other")
-    t2 = t.timeit(num) / num * 1000.0
-    print("befor and after time {}, {}".format(t1, t2))
-    '''
-
