@@ -1,7 +1,10 @@
 import torch
 import torch.nn.functional as F
 
+#import intel_extension_for_pytorch as ipex
+
 import numpy as np
+import time
 
 from timeit import Timer
 torch.manual_seed(2020)
@@ -166,20 +169,34 @@ for x in range(len(S)):
 
     model = ConvNet().to(memory_format=torch.channels_last).eval()
     with torch.no_grad():
-        traced_model = torch.jit.script(model).eval()
+        traced_model = torch.jit.script(model).eval().eval()
         traced_model = torch.jit.freeze(traced_model)
 
     other = model.conv2d(X).to(memory_format=torch.channels_last)
 
+    # warm_up
     with torch.no_grad():
-        for i in range(200):
+        for i in range(300):
             y = traced_model(X, other)
+
+    num_iter = 300
+    fwd = 0
+    with torch.no_grad():
+        t1  = time.time()
+        for i in range(num_iter):
+            y = traced_model(X, other)
+        t2 = time.time()
+        fwd = fwd + (t2 - t1)
+
+    avg_time = fwd / num_iter * 1000
+    print("time {}".format(avg_time))
+
+    '''
     def pt_forward():
         with torch.no_grad():
             y = traced_model(X, other)
-
-    
     #torch._C._jit_set_texpr_fuser_enabled(True)
     t = Timer("pt_forward()", "from __main__ import pt_forward, X, other") 
     t1 = t.timeit(num) / num * 1000.0
     print("time {}".format(t1))
+    '''
