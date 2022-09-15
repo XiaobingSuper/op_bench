@@ -1,6 +1,6 @@
 export KMP_SETTING="KMP_AFFINITY=granularity=fine,compact,1,0"
 
-export DNNL_PRIMITIVE_CACHE_CAPACITY=1024
+#export DNNL_PRIMITIVE_CACHE_CAPACITY=1024
 
 CORES=`lscpu | grep Core | awk '{print $4}'`
 SOCKETS=`lscpu | grep Socket | awk '{print $2}'`

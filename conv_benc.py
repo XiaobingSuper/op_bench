@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-
+import torch.profiler as profiler
 #import intel_extension_for_pytorch as ipex
 
 import numpy as np
@@ -136,12 +136,12 @@ S = [
 [1, 1024, 7, 7, 1024, 3, 3, 1, 1, 1, 1, 32],
 [1, 1024, 7, 7, 2048, 1, 1, 1, 1, 0, 0, 1],
     ]
-for x in range(len(S)):
-#for x in range(1):
-    P = S[x]
+#for x in range(len(S)):
+for x in range(1):
+    P = S[-2]
     (N, C, H, W) = P[0:4]
-    #N = 40
-    N = 1 
+    N = 40
+    #N = 1 
     M = P[4]
     (kernel_h, kernel_w) = P[5:7]
     (stride_h, stride_w) = P[7:9]
@@ -155,17 +155,20 @@ for x in range(len(S)):
         C, M, (kernel_h, kernel_w), stride=(stride_h, stride_w),
         padding=(padding_h, padding_w), groups=g, bias=True)
 
+
     class ConvNet(torch.nn.Module):
         def __init__(self):
             super(ConvNet, self).__init__()
             self.conv2d = conv2d_pt
             self.binary = torch.add
+            self.hardswish = torch.nn.Hardswish(inplace=False)
+            self.conv2 = torch.nn.Conv2d(1024, 1024, 1, 1)
 
         def forward(self, x, other):
-            y = self.conv2d(x)
-            result = self.binary(y, other)
-            #return result
-            return result.relu()
+            y = self.conv2d(x.clone())
+            result = self.binary(y, other+1)
+            return result
+            #return result.relu()
 
     model = ConvNet().to(memory_format=torch.channels_last).eval()
     with torch.no_grad():
@@ -179,6 +182,7 @@ for x in range(len(S)):
         for i in range(300):
             y = traced_model(X, other)
 
+    print("begin running.............")
     num_iter = 300
     fwd = 0
     with torch.no_grad():
@@ -190,13 +194,17 @@ for x in range(len(S)):
 
     avg_time = fwd / num_iter * 1000
     print("time {}".format(avg_time))
+    def trace_handler(prof):
+        print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
 
     '''
-    def pt_forward():
+    with profiler.profile(
+        activities=[profiler.ProfilerActivity.CPU],
+        schedule=torch.profiler.schedule(wait=10,warmup=50,active=10),
+        # son_trace_ready=torch.profiler.tensorboard_trace_handler("profiler_result")
+        on_trace_ready=trace_handler) as p:
         with torch.no_grad():
-            y = traced_model(X, other)
-    #torch._C._jit_set_texpr_fuser_enabled(True)
-    t = Timer("pt_forward()", "from __main__ import pt_forward, X, other") 
-    t1 = t.timeit(num) / num * 1000.0
-    print("time {}".format(t1))
+            for i in range(300):
+                y = traced_model(X, other)
+                p.step()
     '''
