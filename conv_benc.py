@@ -136,8 +136,8 @@ S = [
 [1, 1024, 7, 7, 1024, 3, 3, 1, 1, 1, 1, 32],
 [1, 1024, 7, 7, 2048, 1, 1, 1, 1, 0, 0, 1],
     ]
-#for x in range(len(S)):
-for x in range(1):
+for x in range(len(S)):
+#for x in range(1):
     P = S[-2]
     (N, C, H, W) = P[0:4]
     N = 40
@@ -161,12 +161,10 @@ for x in range(1):
             super(ConvNet, self).__init__()
             self.conv2d = conv2d_pt
             self.binary = torch.add
-            self.hardswish = torch.nn.Hardswish(inplace=False)
-            self.conv2 = torch.nn.Conv2d(1024, 1024, 1, 1)
 
         def forward(self, x, other):
-            y = self.conv2d(x.clone())
-            result = self.binary(y, other+1)
+            y = self.conv2d(x)
+            result = self.binary(y, other)
             return result
             #return result.relu()
 
